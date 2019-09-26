@@ -11,13 +11,16 @@ output:
       collapsed: no
 ---
 # SparNord ATM transactions
+
+data link: https://sparnordopenbanking.com/OpenData
+colab link: https://colab.research.google.com/drive/1sxLL6-VgMbpN7uDsgd7F1bpdEmyFsRN1
+github link: https://github.com/LarsHernandez/M1-Project-ATM 
+
 In this project we would work around the following problem statement. To solve the statement we will use the ML-techniques which the course so far have presented for us.
 
 >Predict whether the transaction in the Spar Nord ATMs is a euro transaction or not. 
 
 In order to answer our problem statement, we’ve obtained a data set published by Spar Nord A/S. The data set contains data of all cash withdrawals made at their ATMs in Denmark in 2017. Based on the data set, we then want to set up a model which can 'predict' whether the transaction in the ATMs is in euros or not.
-
-Source: https://sparnordopenbanking.com/OpenData.
 
 The raw-dataset contains 2.5 million observations with 33 variables, which range from information about day, time and month to weather conditions, coordinates and cardtype. Some of the variables include NA, but those are primarily message codes and text related to the withdrawal (some kind of error). This mean the dataset are pretty complete and there are no need for data imputation or cleaning. The next step is to modify the data to our problem statement, which is descried in feature generation. Before we get to that section, we will present a visually overview of the raw-data with summary statistics and explanatory comments. 
 
@@ -52,13 +55,17 @@ library(ROSE)
 base <- "#1f83b4"
 base2 <- "#12a2a8"
 
-load(file="generated_data/sATM.Rdata")
-load(file="generated_data/bATM.Rdata")
-load(file="generated_data/fdata.Rdata")
+# This part requires you have run the datamanagement parts of the script, or you can find the data in the github repository
+load(file = "generated_data/sATM.Rdata")
+load(file = "generated_data/bATM.Rdata")
+load(file = "generated_data/fdata.Rdata")
 load(file = "generated_data/fsATM.Rdata")
 load(file = "generated_data/fbATM.Rdata")
 
 set.seed(20092019)
+
+
+load(url("https://github.com/thefactmachine/hex-binning-gis-data/raw/master/popDensity.RData"))
 ```
 
 

@@ -47,6 +47,7 @@ library(sf)
 library(GGally)
 library(FactoMineR)
 library(geosphere)
+library(ROSE)
 
 base <- "#1f83b4"
 base2 <- "#12a2a8"
@@ -54,6 +55,8 @@ base2 <- "#12a2a8"
 load(file="generated_data/sATM.Rdata")
 load(file="generated_data/bATM.Rdata")
 load(file="generated_data/fdata.Rdata")
+load(file = "generated_data/fsATM.Rdata")
+load(file = "generated_data/fbATM.Rdata")
 
 set.seed(20092019)
 ```
@@ -88,11 +91,6 @@ save(data, file = "generated_data/data.Rdata")
 
 ```
 
-```{r}
-load(file = "generated_data/fsATM.Rdata")
-load(file = "generated_data/fbATM.Rdata")
-load(file = "generated_data/fdata.Rdata")
-```
 
 
 
@@ -616,17 +614,17 @@ Facing the size challenge has meant that we decided to do the supervised models 
 
 1. Logistic regression
 2. Elastic Net
-  alpha: decides the penalty enforced on the parametres
-  lambda: the weight between Lasso and Ridge regression
+...*alpha:* decides the penalty enforced on the parametres
+...*lambda:* the weight between Lasso and Ridge regression
 3. Classification tree
-  CP: is a complexity parametre that decides the degree of pruning of the tree
+...*CP:* is a complexity parametre that decides the degree of pruning of the tree
 4. Bagged classification tree
-  nbagg: describes how manny trees is created and 
+...*nbagg:* describes how manny trees is created and 
 5. Random forrest
-  mtry: the number of variables that is included in each split
-  ntree: number of branches grown after each split 
+...*mtry:* the number of variables that is included in each split
+...*ntree:* number of branches grown after each split 
 6. Suport vector macines/classifier
-  kernel: We use a linear kernel, but there are manny choices like polynomial 
+...*kernel:* We use a linear kernel, but there are manny choices like polynomial 
 
 The crossvalidation is set 5-fold, and the data is split into test and training
 
@@ -782,7 +780,7 @@ df <- rbind(ran, log,ela, tre, bag, svm, raf)
 ggplot(df, aes(.metric, .estimate, fill = reorder(model, desc(.estimate)))) + 
   geom_col(position="dodge", width = 0.6) + 
   scale_fill_tableau(palette = "Classic Cyclic", type = "regular") + 
-  labs(title="Model performance on predicting Legendary status", 
+  labs(title="Model performance on predicting Euro transaction", 
        subtitle="Crossvalidated 1/5 split", fill="Predictive Model")
 ```
 
@@ -798,30 +796,154 @@ This however excludes a lot of information from the majority class in the datase
 
 
 
+```{r MODEL DOWN}
+
+# simple undersampling  ---------------------------------------------------
+
+load(file="generated_data/fdata.Rdata")
+
+#Downsampling is done by adding sampling="down" in trainControl 
+#This time the entire dataset with features is used (fdata)
+
+ml <- fdata
+ml$Euro <- as.factor(ifelse(ml$Euro == "TRUE", "Yes", "No"))
+index    <- createDataPartition(ml$Euro, p = 0.75, list = FALSE)
+training <- ml[index,] 
+test     <- ml[-index,] 
+
+sub<-ovun.sample(Euro ~ ., data = training, p=0.5, method="under", seed = 1)$data
+sub2 <- sample_n(sub, 20000)
+sub3 <- sample_n(sub, 5000)
+sub4 <- sample_n(sub, 100)
+
+a <- Sys.time()
+fit_log <- train(Euro ~ .,
+                 data      = sub3,
+                 trControl = cv, 
+                 method    = "glm", 
+                 family    = "binomial",
+                 metric    = 'Accuracy')
+b <- Sys.time()
+fit_ela <- train(Euro ~ .,
+                 data      = sub3,
+                 trControl = cv, 
+                 tuneGrid  = expand.grid(alpha  = seq(0, 1, by = 0.2), 
+                                         lambda = 10^seq(1, -4, by = -1)),
+                 method    = "glmnet", 
+                 family    = "binomial",
+                 metric    = 'Accuracy')
+c <- Sys.time()
+fit_tre <- train(Euro ~ .,
+                 data      = sub3, 
+                 trControl = cv, 
+                 metric    = "Kappa",
+                 method    = "rpart", 
+                 tuneGrid  = expand.grid(cp = c(0.001, 0.005)))
+d <- Sys.time()
+fit_bag <- train(Euro ~ ., 
+                 data      = sub3, 
+                 method    = "treebag",
+                 nbagg     = 25,
+                 metric    = "ROC",
+                 trControl = trainControl(method = "cv", number = 5, classProbs = T))
+e <- Sys.time()
+fit_raf <- train(Euro ~ ., 
+                 data      = sub3,
+                 trControl = cv,
+                 .mtry     = 6,
+                 ntree     = 50,
+                 method    = 'rf',
+                 metric    = 'Accuracy')
+f <- Sys.time()
+fit_svm <- train(Euro ~ ., 
+                 data      = sub4,
+                 trControl = cv,
+                 tuneGrid  = expand.grid(C = 10^seq(1, -1, by = -0.02)),
+                 method    = 'svmLinear',
+                 metric    = 'Accuracy')
+g<- Sys.time()
+
+```
+
+
 ```{r}
-#cv <- trainControl(method = "cv", number = 5, sampling = "down")
-#
-#ml <- fdata
-#ml$Euro <- as.factor(ifelse(ml$Euro == "TRUE", "Yes", "No"))
-#
-#index    <- createDataPartition(ml$Euro, p = 0.10, list = FALSE)
-#training <- ml[index,] 
-#test     <- ml[-index,] 
-#
-#a <- Sys.time()
-#fit_log <- train(Euro ~ .,
-#                 data      = training,
-#                 trControl = cv, 
-#                 method    = "glm", 
-#                 family    = "binomial",
-#                 metric    = 'Accuracy')
-#b <- Sys.time()
+conf_log <- table(predict(fit_log,  test), test$Euro)
+conf_tre <- table(predict(fit_tre,  test), test$Euro)
+conf_ela <- table(predict(fit_ela,  test), test$Euro)
+conf_bag <- table(predict(fit_bag,  test), test$Euro)
+conf_raf <- table(predict(fit_raf,  test), test$Euro)
+conf_svm <- table(predict(fit_svm,  test), test$Euro)
+
+random   <- rbinom(n = length(test$Euro), size = 1, prob = mean(training$Euro=="Yes"))
+conf_ran <- table(as.factor(if_else(random == 1, "Yes", "No")), test$Euro)
+
+kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran)) %>% 
+  kable_styling("bordered", "condensed", font_size = 11) %>%
+  column_spec(1, bold = T, color="black") %>%
+  add_header_above(c(" "                             = 1, 
+                     "Bagged\nTree"                  = 2, 
+                     "Classification\nTree"          = 2, 
+                     "Logistic\nRegression"          = 2, 
+                     "Elastic Net\nRegression"       = 2,
+                     "Random\nForrest"               = 2, 
+                     "Support Vector\nMachines"      = 2,
+                     "Random\nAssignment"            = 2))
+```
+
+
+```{r}
+cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
+           "Logistic: ", round(difftime(b,a, units = "mins"),2),"\n",
+           "Elastic:  ", round(difftime(c,b, units = "mins"),2),"\n",
+           "Tree:     ", round(difftime(d,c, units = "mins"),2),"\n",
+           "Bagged:   ", round(difftime(e,d, units = "mins"),2),"\n",
+           "RF:       ", round(difftime(f,e, units = "mins"),2),"\n",
+           "SVM:      ", round(difftime(g,f, units = "mins"),2),"\n",
+           "Total:    ", round(difftime(g,a, units = "mins"),2),"\n"))
+
+
+
+
+
+#confusionMatrix(table(conf_dt3, x_test3$Euro))
+
+raf <- rbind(spec(conf_raf), precision(conf_raf), accuracy(conf_raf), recall(conf_raf), npv(conf_raf))
+ela <- rbind(spec(conf_ela), precision(conf_ela), accuracy(conf_ela), recall(conf_ela), npv(conf_ela))
+tre <- rbind(spec(conf_tre), precision(conf_tre), accuracy(conf_tre), recall(conf_tre), npv(conf_tre))
+log <- rbind(spec(conf_log), precision(conf_log), accuracy(conf_log), recall(conf_log), npv(conf_log))
+bag <- rbind(spec(conf_bag), precision(conf_bag), accuracy(conf_bag), recall(conf_bag), npv(conf_bag))
+ran <- rbind(spec(conf_ran), precision(conf_ran), accuracy(conf_ran), recall(conf_ran), npv(conf_ran))
+svm <- rbind(spec(conf_svm), precision(conf_svm), accuracy(conf_svm), recall(conf_svm), npv(conf_svm))
+
+
+bag$model <- "Bagged Tree"
+tre$model <- "Classification Tree"
+raf$model <- "Random Forrest"
+log$model <- "Logistic Regression"
+ela$model <- "Elastic Net Regression"
+ran$model <- "Random Assignment"
+svm$model <- "Support Vector Machines"
+
+#df <- rbind(log, lok, ran, net, raf, svm)
+
+df <- rbind( log, tre, bag, svm, raf, ran, ela)
+
+ggplot(df, aes(.metric, .estimate, fill = reorder(model, desc(.estimate)))) + 
+  geom_col(position="dodge", width = 0.6) + 
+  scale_fill_tableau(palette = "Classic Cyclic", type = "regular") +  
+  labs(title="Model performance on predicting Euro transaction", 
+       subtitle="Crossvalidated 1/5 split", fill="Predictive Model")
+
 ```
 
 
 
 ## Conclusion
-This is a really good model
+Using the original training set yielded a high accuracy, this however was primarily due to almost all of the predictions being DKK. The spec values were low for all models. This is not optimal if the purpose is to predict Euro withdrawals. Using downscaling resulted in a decrease in accuracy, however a major part of the Euro withdrawals in the test set was predicted. This resulted in high spec values, but the NPV values were low due to a lot of predicted Euro transactions. 
+
+The models have not performed well and the conclusion must be that the model contains too much noise and/or that the included variables lacks sufficient explanatory power.
+
+The logistic regression seemed to perform the best compared to the other more “advanced” models used for prediction, however these results were still not satisfactory.
 
 
 

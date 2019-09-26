@@ -13,8 +13,11 @@ output:
 # SparNord ATM transactions
 
 data link: https://sparnordopenbanking.com/OpenData
+
 colab link: https://colab.research.google.com/drive/1sxLL6-VgMbpN7uDsgd7F1bpdEmyFsRN1
-github link: https://github.com/LarsHernandez/M1-Project-ATM 
+
+github link: https://github.com/LarsHernandez/M1-Project-ATM
+
 
 In this project we would work around the following problem statement. To solve the statement we will use the ML-techniques which the course so far have presented for us.
 
@@ -587,17 +590,28 @@ Facing the size challenge has meant that we decided to do the supervised models 
 
 1. Logistic regression
 2. Elastic Net
-...*alpha:* decides the penalty enforced on the parametres
-...*lambda:* the weight between Lasso and Ridge regression
+
+   *alpha:* decides the penalty enforced on the parametres
+   
+   *lambda:* the weight between Lasso and Ridge regression
+
 3. Classification tree
-...*CP:* is a complexity parametre that decides the degree of pruning of the tree
+
+   *CP:* is a complexity parametre that decides the degree of pruning of the tree
+   
 4. Bagged classification tree
-...*nbagg:* describes how manny trees is created and 
+
+   *nbagg:* describes how manny trees is created and 
+   
 5. Random forrest
-...*mtry:* the number of variables that is included in each split
-...*ntree:* number of branches grown after each split 
+
+   *mtry:* the number of variables that is included in each split
+   
+   *ntree:* number of branches grown after each split 
+   
 6. Suport vector macines/classifier
-...*kernel:* We use a linear kernel, but there are manny choices like polynomial 
+
+   *kernel:* We use a linear kernel, but there are manny choices like polynomial 
 
 The crossvalidation is set 5-fold, and the data is split into test and training
 
@@ -831,7 +845,16 @@ g <- Sys.time()
 
 
 ```{r PREDICT DOWN, eval=TRUE}
-a <- Sys.time()
+cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
+           "Logistic: ", round(difftime(b,a, units = "mins"),2),"\n",
+           "Elastic:  ", round(difftime(c,b, units = "mins"),2),"\n",
+           "Tree:     ", round(difftime(d,c, units = "mins"),2),"\n",
+           "Bagged:   ", round(difftime(e,d, units = "mins"),2),"\n",
+           "RF:       ", round(difftime(f,e, units = "mins"),2),"\n",
+           "SVM:      ", round(difftime(g,f, units = "mins"),2),"\n",
+           "Total:    ", round(difftime(g,a, units = "mins"),2),"\n"))
+
+aa <- Sys.time()
 conf_log <- table(predict(fit_log,  test), test$Euro)
 conf_tre <- table(predict(fit_tre,  test), test$Euro)
 conf_ela <- table(predict(fit_ela,  test), test$Euro)
@@ -841,7 +864,7 @@ conf_svm <- table(predict(fit_svm,  test), test$Euro)
 random   <- rbinom(n = length(test$Euro), size = 1, prob = mean(training$Euro == "Yes"))
 conf_ran <- table(as.factor(if_else(random == 1, "Yes", "No")), test$Euro)
 
-paste("The prediction takes: ", round(difftime(Sys.time(), a, units = "mins"),2), " mins")
+paste("The prediction takes: ", round(difftime(Sys.time(), aa, units = "mins"),2), " mins")
 
 kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran)) %>% 
   kable_styling("bordered", "condensed", font_size = 11) %>%
@@ -858,15 +881,6 @@ kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran
 
 
 ```{r eval=TRUE, fig.height=5, fig.width=10}
-cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
-           "Logistic: ", round(difftime(b,a, units = "mins"),2),"\n",
-           "Elastic:  ", round(difftime(c,b, units = "mins"),2),"\n",
-           "Tree:     ", round(difftime(d,c, units = "mins"),2),"\n",
-           "Bagged:   ", round(difftime(e,d, units = "mins"),2),"\n",
-           "RF:       ", round(difftime(f,e, units = "mins"),2),"\n",
-           "SVM:      ", round(difftime(g,f, units = "mins"),2),"\n",
-           "Total:    ", round(difftime(g,a, units = "mins"),2),"\n"))
-
 #confusionMatrix(table(conf_dt3, x_test3$Euro))
 
 raf <- rbind(spec(conf_raf), precision(conf_raf), accuracy(conf_raf), recall(conf_raf), npv(conf_raf))

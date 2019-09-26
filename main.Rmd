@@ -32,6 +32,8 @@ The raw-dataset contains 2.5 million observations with 33 variables, which range
 
 
 ```{r PACKAGES, message=FALSE, warning=FALSE}
+timer <- Sys.time()
+
 library(tidyverse)
 library(lubridate)
 library(ggforce)
@@ -52,27 +54,32 @@ library(FactoMineR)
 library(geosphere)
 library(ROSE)
 
-base <- "#1f83b4"
+base  <- "#1f83b4"
 base2 <- "#12a2a8"
-
-# This part requires you have run the datamanagement parts of the script, or you can find the data in the github repository
-load(file = "generated_data/sATM.Rdata")
-load(file = "generated_data/bATM.Rdata")
-load(file = "generated_data/fdata.Rdata")
-load(file = "generated_data/fsATM.Rdata")
-load(file = "generated_data/fbATM.Rdata")
 
 set.seed(20092019)
 
+# To generate this part requires you have run the datamanagement parts 
+# of the script, or you can find the data in the github repository or by
+# the codes here below
 
-load(url("https://github.com/thefactmachine/hex-binning-gis-data/raw/master/popDensity.RData"))
+#load(url("https://github.com/LarsHernandez/M1-Project-ATM/blob/master/generated_data/data.Rdata?raw=true"))
+#load(url("https://github.com/LarsHernandez/M1-Project-ATM/blob/master/generated_data/fdata.Rdata?raw=true"))
+#load(url("https://github.com/LarsHernandez/M1-Project-ATM/blob/master/generated_data/fbATM.Rdata?raw=true"))
+#load(url("https://github.com/LarsHernandez/M1-Project-ATM/blob/master/generated_data/bATM.Rdata?raw=true"))
+#load(url("https://github.com/LarsHernandez/M1-Project-ATM/blob/master/generated_data/sATM.Rdata?raw=true"))
+
+load(file = "generated_data/data.Rdata")
+load(file = "generated_data/fdata.Rdata")
+load(file = "generated_data/fbATM.Rdata")
+load(file = "generated_data/bATM.Rdata")
+load(file = "generated_data/sATM.Rdata")
 ```
 
 
 In the code in this section is the data management. This downloads the main datafile and unzips it. Unzipped the size is around 500mb.
 
 ```{r DATA MANAGEMENT, eval=FALSE}
-
 # Data --------------------------------------------------------------------
 temp <- tempfile()
 download.file("https://sparnordopenbanking.com/downloads/open_dataset.zip", temp)
@@ -80,7 +87,6 @@ data1 <- read_csv(unz(temp, "atm_data_part1.csv"))
 data2 <- read_csv(unz(temp, "atm_data_part2.csv"), 
                   col_types = cols(rain_3h = col_double()))
 unlink(temp)
-
 
 # Binding the data --------------------------------------------------------
 data      <- bind_rows(data1, data2)
@@ -90,7 +96,6 @@ data$date <- ymd(paste0(data$year, "-", data$month, "-", data$day))
 
 sATM <- sample_n(data, size = 10000,  replace = F)
 bATM <- sample_n(data, size = 250000, replace = F)
-
 
 save(sATM, file = "generated_data/sATM.Rdata")
 save(bATM, file = "generated_data/bATM.Rdata")
@@ -109,7 +114,7 @@ coord <- as.matrix(data.frame(min = c(8, 55),
                               max = c(13, 58), 
                               row.names = c("x","y")))
 
-s <- bATM %>% filter(atm_lat > coord[2,1] & atm_lat < coord[2,2] & 
+s <- data %>% filter(atm_lat > coord[2,1] & atm_lat < coord[2,2] & 
                      atm_lon < coord[1,2] & atm_lon > coord[1,1]) %>% 
   group_by(atm_id) %>% 
   summarize(n   = n(),
@@ -150,33 +155,33 @@ In this first visualisation we see that the activity is based heavily around Nor
 Well, lets see how the transactions are distributed in time:
 
 ```{r fig.height=6, fig.width=10}
-s1 <- bATM %>% group_by(month) %>% summarize(n=n()/1000) %>% 
+s1 <- data %>% group_by(month) %>% summarize(n=n()/1000) %>% 
   ggplot(aes(month,n))   + geom_col(fill=base, width=0.8)     + 
-  labs(title = "By month") + 
+  labs(title = "By month - Total", x="") + 
   theme(axis.text.x = element_text(angle = 90, vjust=-0.1))
 
-s2 <- bATM %>% group_by(day) %>% summarize(n=n()/1000) %>% 
+s2 <- data %>% group_by(day) %>% summarize(n=n()/1000) %>% 
   ggplot(aes(day,n)) + geom_col(fill=base, color=base)         + 
-  labs(title = "By day")
+  labs(title = "By day - Total", x="")
 
-s3 <- bATM %>% group_by(weekday) %>% summarize(n=n()/1000) %>% 
+s3 <- data %>% group_by(weekday) %>% summarize(n=n()/1000) %>% 
   ggplot(aes(weekday,n)) + geom_col(fill=base, width=0.8) + 
-  labs(title = "By weekday") + 
+  labs(title = "By weekday - Total", x="") + 
   theme(axis.text.x = element_text(angle = 90, vjust=-0.1))
 
-s4 <- bATM %>% group_by(hour) %>% summarize(n=n()/1000) %>% 
+s4 <- data %>% group_by(hour) %>% summarize(n=n()/1000) %>% 
   ggplot(aes(hour,n))    + geom_col(fill=base, color=base)       + 
-  labs(title = "By hour") + 
+  labs(title = "By hour - Total", x="") + 
   scale_x_continuous(breaks=c(0,3,6,9,12,15,18,21,24))
 
 
-s5 <- bATM %>% filter(currency == "EUR") %>% group_by(weekday) %>% summarize(n=n()/1000) %>% ggplot(aes(weekday,n)) + geom_col(fill=base, width=0.8)  + labs(title="By weekday - Euro")+ 
+s5 <- data %>% filter(currency == "EUR") %>% group_by(weekday) %>% summarize(n=n()/1000) %>% ggplot(aes(weekday,n)) + geom_col(fill=base, width=0.8)  + labs(title="By weekday - Euro", x="")+ 
   theme(axis.text.x = element_text(angle = 90, vjust=-0.1))
-s6 <- bATM %>% filter(currency == "EUR") %>% group_by(month) %>% summarize(n=n()/1000) %>% ggplot(aes(month,n)) + geom_col(fill=base, width=0.8)  + labs(title="By month - Euro")+ 
+s6 <- data %>% filter(currency == "EUR") %>% group_by(month) %>% summarize(n=n()/1000) %>% ggplot(aes(month,n)) + geom_col(fill=base, width=0.8)  + labs(title="By month - Euro", x="")+ 
   theme(axis.text.x = element_text(angle = 90, vjust=-0.1))
-s7 <- bATM %>% filter(currency == "EUR") %>% group_by(day) %>% summarize(n=n()/1000) %>% ggplot(aes(day,n)) + geom_col(color = base, fill = base) + 
-labs(title="By day - Euro")
-s8 <- bATM %>% filter(currency == "EUR") %>% group_by(hour) %>% summarize(n=n()/1000) %>% ggplot(aes(hour,n)) + geom_col(color = base, fill = base) + labs(title="By hour - Euro") + 
+s7 <- data %>% filter(currency == "EUR") %>% group_by(day) %>% summarize(n=n()/1000) %>% ggplot(aes(day,n)) + geom_col(color = base, fill = base) + 
+labs(title="By day - Euro", x="")
+s8 <- data %>% filter(currency == "EUR") %>% group_by(hour) %>% summarize(n=n()/1000) %>% ggplot(aes(hour,n)) + geom_col(color = base, fill = base) + labs(title="By hour - Euro", x="") + 
   scale_x_continuous(breaks=c(0,3,6,9,12,15,18,21,24))
 
 grid.arrange(s1,s3,s2,s4,s6,s5,s7,s8, nrow=2)
@@ -187,7 +192,7 @@ The plots shows the amount of the euro-transactions destributed on weekday, mont
 
 ```{r fig.height=5, fig.width=10}
 
-bATM %>% filter(currency =="EUR") %>% group_by(day, month) %>% summarize(n=n()) %>% ggplot(aes(day, n)) + geom_col(fill=base, color=base) + facet_wrap(~month)  + labs(title="The number of Euro withdrawals on each date", subtitle="We see how the summer is an active period, while january is almost empty")
+data %>% filter(currency =="EUR") %>% group_by(day, month) %>% summarize(n=n()) %>% ggplot(aes(day, n)) + geom_col(fill=base, color=base) + facet_wrap(~month)  + labs(title="The number of Euro withdrawals on each date", subtitle="We see how the summer is an active period, while january is almost empty")
 
 ```
 
@@ -197,14 +202,14 @@ The plots shows the amount of euro-withdraws on the specific day in the month. A
 Another thing is to see which machines that the eurotransacrions occour in, and we find that the transactions are not evenly distributed
 
 ```{r fig.height=2, fig.width=10}
-table(fbATM$Euro, fbATM$Id) %>% 
+table(fdata$Euro, fdata$Id) %>% 
   prop.table(margin=2) %>% 
   as.data.frame %>% 
   filter(Var1==T) %>% 
   ggplot(aes(reorder(Var2, Freq), Freq)) + 
   geom_col(fill=base, color=base) + 
   labs(x="ATM id", legend="Euro", title="Percentage of EURO transactions by each ATM machine", 
-       subtitle="Machine 99 has almost 50% Euro transactions, but it's an internal ATM") + 
+       subtitle="Machine 99 has almost 50% Euro transactions, but it's an internal ATM with relatively few withdrawals") + 
   theme(axis.text.x=element_text(size=4))
 ```
 
@@ -339,11 +344,15 @@ $$Euro = Holliday + Airport + Time + Weekday + Payout + Customer + Region + ATM.
 These plots illustrates the relationship between euro and the distance to the nearest airport. The first one shows a Histogram of the amount of withdraws per  ATM w. distance the ATMs nearest airport, where the second shows the same but only with euro-withdraws. You could emagine that people who are going on vacation would use the ATMs close to the airport when they need euros. As you can see from the last plot, which plots the density of Airportdistance and euro, nearly 20% of the euro-transactions is made in the ATM which is closest to the airport, and after that there seems to be a downward trend in the density. 
 
 ```{r fig.height=5, fig.width=10}
-#fdata
 
-a3 <- ggplot(fdata, aes(x=fdata$Airportdist)) + geom_histogram(binwidth=3, col = base, fill = base) + labs(title="Distance to airport")
-a4 <- ggplot(fdata, aes(x=fdata$Airportdist, stat(density))) + geom_histogram(binwidth=3, col = base, fill = base) + 
-  facet_wrap(~Euro, nrow=2) + labs(title="Distance to airport by Euro")
+a3 <- ggplot(fdata, aes(x=fdata$Airportdist)) + 
+  geom_histogram(binwidth=3, col = base, fill = base) + 
+  labs(title="Distance to airport total", x="Distance to airport")
+
+a4 <- ggplot(fdata, aes(x=fdata$Airportdist, stat(density))) + 
+  facet_wrap(~Euro, nrow=2) + 
+  geom_area(aes(y = ..density..), stat = 'density', fill=base) + 
+  labs(title="Distance to airport by Euro", x="Distance to airport")
 
 grid.arrange(a3,a4, nrow=1)
 ```
@@ -353,7 +362,7 @@ grid.arrange(a3,a4, nrow=1)
 If we do a summary of average distance to airport by currency we find that contrary to expectation the average distance is higher for Eurotransactions
 
 ```{r}
-fbATM %>% 
+fdata %>% 
   group_by(Euro) %>% 
   summarize(MeanDistance = mean(Airportdist)) %>% kable %>% kable_styling("condensed", "bordered")
 ```
@@ -363,13 +372,13 @@ It seems like Region Sjælland and Region Midtjylland are more likely to withdra
 ```{r fig.height=4, fig.width=10}
 #Euro/Region
 fdata %>% group_by(Region, Euro) %>% summarize(n=n()) %>% mutate(freq = n/sum(n)) %>% filter(Euro==T) %>% 
-  ggplot(aes(reorder(Region,freq),freq)) + geom_col(fill=base) + labs(title="The amount of Euro withdraws by each region", x="") + geom_text(aes(y=freq + 0.002,label=round(freq*100,2)))
+  ggplot(aes(reorder(Region,freq),freq)) + geom_col(fill=base) + labs(title="Euro withdraws by region", x="") + geom_text(aes(y=freq + 0.002,label=round(freq*100,2)))
 ```
 
 - As we can see there is total 16.965 euro-withdraws in the Holiday, and 29.474 not-euro-withdraws and therefore an overweight of not-euro-withdraws in the holiday. The plot shows that 2.49% of the withdraws in the holiday is euro-withdraws, where 1.65% of the withdraws outside of the holiday is euro-withdraws. So it seems like people are more likely to do euro-withdraws in the holiday than outside the holiday. This can be explained by the fact that people want to have some euros in cash if they are going on a vacation in Europe. We can test if this different is statistically significant by a chisq test and we find that it is very significant, therefore this will be a good variable for our model. 
 
 ```{r}
-tab <- table(fbATM$Holliday, fbATM$Euro)
+tab <- table(fdata$Holliday, fdata$Euro)
 summary(tab)
 ```
 
@@ -408,7 +417,7 @@ The plot shows which cardtype that often has a euro-withdraw, as can be seen it'
 fdata %>% group_by(Card, Euro) %>% summarize(n=n()) %>% mutate(freq = n/sum(n)) %>% filter(Euro==T) %>% 
   ggplot(aes(reorder(Card,freq),freq)) + 
   geom_col(fill=base) + 
-  labs(title="Euro-withdraws as percent of all the trans", x="") + 
+  labs(title="Euro withdraws by cardtype", x="") + 
   geom_text(aes(y=freq + 0.002,label=round(freq*100,2)))
 
 ```
@@ -428,9 +437,9 @@ vars <- c("day","hour","atm_id","atm_street_number","atm_zipcode","atm_lat",
           "temp","pressure","humidity","wind_speed","wind_deg","rain_3h",
           "clouds_all","weather_id")
 
-sATM[,vars] %>% 
+bATM[,vars] %>% 
   aggr(col = c('white',base), 
-       labels = names(sATM[,vars]), 
+       labels = names(bATM[,vars]), 
        cex.axis = 0.5, 
        gap = 0.5, 
        ylab=c("Missing data","Pattern"))
@@ -439,7 +448,7 @@ sATM[,vars] %>%
 The next step is to evaluate the correlation between the remaining variables. The case is if the correlation between two variables is high we'll exclude one of the variables. The reason is that high correlation doesn’t contribute with useful information, since it’s already there in one of the two variables. In the plot below the correlation between the variables is shown.
 
 ```{r fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
-ggcorr(sATM[vars], label = TRUE, label_size = 2, label_round = 2, hjust = 0.90) + 
+ggcorr(bATM[vars], label = TRUE, label_size = 2, label_round = 2, hjust = 0.90) + 
   labs(title="Correlation among variables", fill="Correlation") + 
   scale_fill_gradient2(midpoint=0, low=base, mid="white", high=base)+
   coord_cartesian(expand=T)
@@ -454,8 +463,12 @@ We are now ready to make a PCA of the dataset. We do this because we want to red
 vars2 <- c("day","hour","atm_id","atm_street_number","atm_zipcode","atm_lat",
            "atm_lon","weather_city_id","temp","pressure","humidity","wind_speed",
            "wind_deg","clouds_all", "weather_id")
+pca <- sATM[,vars2] %>% 
+  map_dfc(.f = scale) %>% 
+  prcomp(rank=4)
 
 a <- summary(pca)
+
 df1 <- a$importance[2,] %>% as_tibble %>% gather(variable, value) %>% mutate(type="Change", N=c(1:nrow(.)))
 df2 <- a$importance[3,] %>% as_tibble %>% gather(variable, value) %>% mutate(type="Accumulated", N=c(1:nrow(.)))
 
@@ -470,11 +483,6 @@ rbind(df1,df2) %>% as_tibble %>%
 If we use the elbow-method we can see on the plot above that the optimal number of PCA’s seems to be between 3 to 5 PCAs. If we then choose to go with 4 PCAs then the accumulated variance explained is only 46%, that means that the data is very heterogenic. If we examines the selected PCAs we can see that the top loading in each component is respectively “atm_zipcode”, “clouds_all”, “atm_id” and “wind_speed”.
 
 ```{r fig.height=3, fig.width=10, message=FALSE, warning=FALSE}
-pca <- sATM[,vars2] %>% 
-  map_dfc(.f = scale) %>% 
-  prcomp(rank=4)
-
-summary(pca)
 
 loadings <- pca$rotation %>% 
   abs() %>% 
@@ -495,28 +503,26 @@ kable(cbind(a,b,c,d)) %>% kable_styling("condensed", "bordered")
 ### Kmeans
 After the PCA we create a Kmeans. There are no relations between the two methods, but they can be used within the decision to select n PCA’s or k clusters. Kmeans is dividing the dataset into k clusters, where the basic idea is to minimize the total within-cluster variation. This is a method to discover similarities in the dataset, and then sample the similar groups into clusters, and the ideal situation is that there is great seperation between the clusters. 
 
-|               | Supervised    | Unsupervised  |
-| ------------- |:-------------:| -------------:|
-| Discrete      | Classification| Clustering    |
-|               |               | (Kmeans)      |
-| ------------- |:-------------:| -------------:|
-| Continuous    | Regression    | Dim.reduction |
-|               |               | (PCA)         |
+|               | Supervised    | Unsupervised       |
+| ------------- |:-------------:| ------------------:|
+| Discrete      | Classification| Clustering (Kmeans)|
+| Continuous    | Regression    | Dim.reduction (PCA)|
 
 
-```{r fig.height=3, fig.width=10}
+
+```{r SCREE, fig.height=3, fig.width=10}
 wss <- 0
 for (i in 1:15) {
-  wss[i] <- kmeans(sATM[,vars2], centers = i, nstart=20)$tot.withinss
+  wss[i] <- kmeans(sATM[,vars2], centers = i, nstart = 5)$tot.withinss
 }
 
-scree <- tibble(wss, N=1:15)
+scree <- tibble(wss, N = 1:15)
 
 ggplot(scree, aes(N, wss)) + 
-  geom_line(size=1.5, color=base) + 
-  geom_point(size=3, shape=21, fill="white", color=base, stroke=2) + 
-  scale_x_continuous(breaks=c(1:15)) + 
-  labs(title="Screeplot: Number of clusters", x="Number of clusters", y="WSS")
+  geom_line(size = 1.5, color = base) + 
+  geom_point(size = 3, shape = 21, fill="white", color = base, stroke = 2) + 
+  scale_x_continuous(breaks = c(1:15)) + 
+  labs(title="Screeplot: Number of clusters", x = "Number of clusters", y = "WSS")
 ```
 
 By use of the elbow-method we conclude that the optimal number of clusters is between 2 to 4 clusters.
@@ -547,9 +553,10 @@ df %>%
   geom_point(aes(color=as.factor(cluster)), alpha=0.3, show.legend = F) + 
   scale_color_tableau(palette = "Classic Cyclic", type = "regular") + 
   scale_fill_tableau(palette = "Classic Cyclic", type = "regular") + 
-  geom_point(data=points, aes(PC2,PC1, fill=as.factor(variable2)), inherit.aes = F, size=5, shape=21, color="black") + 
-  labs(title="Kmeans clusters displayed in first two PCA components", 
-       subtitle="Centroids are created by multiplying the centers by the eigen vector from PCA", 
+  geom_point(data = points, aes(PC2,PC1, fill = as.factor(variable2)), 
+             inherit.aes = F, size = 5, shape = 21, color = "black") + 
+  labs(title = "Kmeans clusters displayed in first two PCA components", 
+       subtitle = "Centroids are created by multiplying the centers by the eigen vector from PCA", 
        fill = "Clusters")
 ```
 
@@ -600,7 +607,7 @@ cv <- trainControl(method = "cv", number = 5)
 ml <- fbATM
 ml$Euro <- as.factor(ifelse(ml$Euro == "TRUE", "Yes", "No"))
 
-index    <- createDataPartition(ml$Euro, p = 0.01, list = FALSE)
+index    <- createDataPartition(ml$Euro, p = 0.04, list = FALSE)
 training <- ml[index,] 
 test     <- ml[-index,] 
 ```
@@ -677,34 +684,24 @@ cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
            "Total:    ", round(difftime(g,a, units = "mins"),2),"\n"))
 
 ```
+We can see that the tree and logistic regression are really fast, so there is plenty of room to increase the training set for these, from the code it can be seen that SVM only are run with 500 and RF with 2000. We're experimenting with higher for all and will present results at the exam as training the models on 0.1% - 0.5% of the data isn't optimal.
 
 
-
-```{r PREDICT}
+```{r PREDICT, message=FALSE, warning=FALSE}
+a <- Sys.time()
 conf_bag <- table(predict(fit_bag,  test), test$Euro)
-#conf_bag
-
 conf_tre <- table(predict(fit_tre,  test), test$Euro)
-#conf_tre
-
 conf_log <- table(predict(fit_log,  test), test$Euro)
-#conf_log
-
 conf_ela <- table(predict(fit_ela,  test), test$Euro)
-#conf_log
-
 conf_raf <- table(predict(fit_raf,  test), test$Euro)
-#conf_raf
-
 conf_svm <- table(predict(fit_svm,  test), test$Euro)
-#conf_svm
-
 random   <- rbinom(n = length(test$Euro), size = 1, prob = mean(training$Euro == "Yes"))
 conf_ran <- table(as.factor(if_else(random == 1, "Yes", "No")), test$Euro)
-#conf_ran
+
+paste("The prediction takes: ", round(difftime(Sys.time(), a, units = "mins"),2), " mins")
 ```
 
-
+The prediction takes some time, especially the bagged tree as the observations has to be run through all 50 trees
 
 ```{r}
 kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran)) %>% 
@@ -724,7 +721,7 @@ kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran
 
 
 
-```{r fig.height=6, fig.width=10}
+```{r fig.height=5, fig.width=10}
 bag <- rbind(spec(conf_bag), precision(conf_bag), accuracy(conf_bag), recall(conf_bag), npv(conf_bag))
 tre <- rbind(spec(conf_tre), precision(conf_tre), accuracy(conf_tre), recall(conf_tre), npv(conf_tre))
 raf <- rbind(spec(conf_raf), precision(conf_raf), accuracy(conf_raf), recall(conf_raf), npv(conf_raf))
@@ -747,7 +744,8 @@ ggplot(df, aes(.metric, .estimate, fill = reorder(model, desc(.estimate)))) +
   geom_col(position="dodge", width = 0.6) + 
   scale_fill_tableau(palette = "Classic Cyclic", type = "regular") + 
   labs(title="Model performance on predicting Euro transaction", 
-       subtitle="Crossvalidated 1/5 split", fill="Predictive Model")
+       subtitle="Crossvalidated 1/5 split - Normal sampeling", 
+       fill="Predictive Models\nordered by performance")
 ```
 
 The models archives a high level of accuracy, this however is primarily caused because most of the models only predicts DKK. The spec values are low for all models. The only models that predict Euro withdrawals are the logistic model and the bagged tree. The bagged tree predicts the most Euro withdrawals, but its npv score is lower than for logistic regression. This is due to bagged tree making more predictions for Euro withdrawals compared to the logistic models. Thus the logistic models makes fewer but more “qualified” predictions.
@@ -761,28 +759,23 @@ $$npv = \frac{TT}{FT+TT}$$
 
 
 
-
 ### Down Sampeling
 46439 (1.92 %) of the transactions made in SparNord’s ATM’s are transactions of Euro (we have included USD$ and GBP£ as well since they are even tinier proportions of the transactions). The huge disproportion between Euro and DKK transactions creates a bias towards predicting DKK. To solve this problem undersampling is used. This is done by selecting n samples from the dominating class (DKK), where n is equal to the total number of Euro transactions in the training set. This creates a dataset that is approx. 50/50 split between Euro and DKK transactions. 
 
 This however excludes a lot of information from the majority class in the dataset, as the final set is only of … observations. An alternative approach could be to use oversampling, where the minority class is re-sampled. This however causes problems with overfitting, as the observations of Euro transactions are duplicated. Due to the size of the dataset undersampling is used.
 
-```{r MODEL DOWN, eval=TRUE}
-
+```{r MODEL DOWN, eval=TRUE, message=FALSE, warning=FALSE}
 # simple undersampling  ---------------------------------------------------
-
-load(file="generated_data/fdata.Rdata")
-
 #Downsampling is done by adding sampling="down" in trainControl 
 #This time the entire dataset with features is used (fdata)
 
 ml <- fdata
-ml$Euro <- as.factor(ifelse(ml$Euro == "TRUE", "Yes", "No"))
+ml$Euro  <- as.factor(ifelse(ml$Euro == "TRUE", "Yes", "No"))
 index    <- createDataPartition(ml$Euro, p = 0.75, list = FALSE)
 training <- ml[index,] 
 test     <- ml[-index,] 
 
-sub  <- ovun.sample(Euro ~ ., data = training, p=0.5, method="under", seed = 1)$data
+sub  <- ovun.sample(Euro ~ ., data = training, p = 0.5, method = "under", seed = 1)$data
 sub2 <- sample_n(sub, 20000)
 sub3 <- sample_n(sub, 5000)
 sub4 <- sample_n(sub, 100)
@@ -814,7 +807,7 @@ d <- Sys.time()
 fit_bag <- train(Euro ~ ., 
                  data      = sub3, 
                  method    = "treebag",
-                 nbagg     = 25,
+                 nbagg     = 20,
                  metric    = "ROC",
                  trControl = trainControl(method = "cv", number = 5, classProbs = T))
 e <- Sys.time()
@@ -832,25 +825,27 @@ fit_svm <- train(Euro ~ .,
                  tuneGrid  = expand.grid(C = 10^seq(1, -1, by = -0.02)),
                  method    = 'svmLinear',
                  metric    = 'Accuracy')
-g<- Sys.time()
+g <- Sys.time()
 
 ```
 
 
 ```{r PREDICT DOWN, eval=TRUE}
+a <- Sys.time()
 conf_log <- table(predict(fit_log,  test), test$Euro)
 conf_tre <- table(predict(fit_tre,  test), test$Euro)
 conf_ela <- table(predict(fit_ela,  test), test$Euro)
 conf_bag <- table(predict(fit_bag,  test), test$Euro)
 conf_raf <- table(predict(fit_raf,  test), test$Euro)
 conf_svm <- table(predict(fit_svm,  test), test$Euro)
-
-random   <- rbinom(n = length(test$Euro), size = 1, prob = mean(training$Euro=="Yes"))
+random   <- rbinom(n = length(test$Euro), size = 1, prob = mean(training$Euro == "Yes"))
 conf_ran <- table(as.factor(if_else(random == 1, "Yes", "No")), test$Euro)
+
+paste("The prediction takes: ", round(difftime(Sys.time(), a, units = "mins"),2), " mins")
 
 kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran)) %>% 
   kable_styling("bordered", "condensed", font_size = 11) %>%
-  column_spec(1, bold = T, color="black") %>%
+  column_spec(1, bold = T, color = "black") %>%
   add_header_above(c(" "                             = 1, 
                      "Bagged\nTree"                  = 2, 
                      "Classification\nTree"          = 2, 
@@ -862,7 +857,7 @@ kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran
 ```
 
 
-```{r eval=TRUE}
+```{r eval=TRUE, fig.height=5, fig.width=10}
 cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
            "Logistic: ", round(difftime(b,a, units = "mins"),2),"\n",
            "Elastic:  ", round(difftime(c,b, units = "mins"),2),"\n",
@@ -871,10 +866,6 @@ cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
            "RF:       ", round(difftime(f,e, units = "mins"),2),"\n",
            "SVM:      ", round(difftime(g,f, units = "mins"),2),"\n",
            "Total:    ", round(difftime(g,a, units = "mins"),2),"\n"))
-
-
-
-
 
 #confusionMatrix(table(conf_dt3, x_test3$Euro))
 
@@ -886,7 +877,6 @@ bag <- rbind(spec(conf_bag), precision(conf_bag), accuracy(conf_bag), recall(con
 ran <- rbind(spec(conf_ran), precision(conf_ran), accuracy(conf_ran), recall(conf_ran), npv(conf_ran))
 svm <- rbind(spec(conf_svm), precision(conf_svm), accuracy(conf_svm), recall(conf_svm), npv(conf_svm))
 
-
 bag$model <- "Bagged Tree"
 tre$model <- "Classification Tree"
 raf$model <- "Random Forrest"
@@ -895,15 +885,14 @@ ela$model <- "Elastic Net Regression"
 ran$model <- "Random Assignment"
 svm$model <- "Support Vector Machines"
 
-#df <- rbind(log, lok, ran, net, raf, svm)
-
 df <- rbind( log, tre, bag, svm, raf, ran, ela)
 
 ggplot(df, aes(.metric, .estimate, fill = reorder(model, desc(.estimate)))) + 
-  geom_col(position="dodge", width = 0.6) + 
+  geom_col(position = "dodge", width = 0.6) + 
   scale_fill_tableau(palette = "Classic Cyclic", type = "regular") +  
-  labs(title="Model performance on predicting Euro transaction", 
-       subtitle="Crossvalidated 1/5 split", fill="Predictive Model")
+  labs(title = "Model performance on predicting Euro transaction", 
+       subtitle = "Crossvalidated 1/5 split - Under/down sampeling", 
+       fill = "Predictive Models\nordered by performance")
 
 ```
 
@@ -919,6 +908,9 @@ The logistic regression seemed to perform the best compared to the other more �
 
 
 
+```{r}
+paste("Total time to knit the document: ", round(difftime(Sys.time(), timer, units = "mins"),2), " mins")
+```
 
 
 

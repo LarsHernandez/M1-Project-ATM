@@ -412,11 +412,8 @@ Based on this review and plots of the new variables, we have the dataset for the
 
 
 
-
-
-
 ## Unsupervised Models
-First we look whether there is some missing data in the variables:
+This section we'll focus on the unsupervised ML part of the project. The dataset is also used on the raw-dataset, but it’s only the numerical variables which is included in the model. First we check the data for missing values, see the figure below. Here it’s clear that the variables “message_text” and “rain_3h” doesn’t contains many values, which is why we exclude these variables.
 
 ```{r fig.height=3, fig.width=10}
 vars <- c("day","hour","atm_id","atm_street_number","atm_zipcode","atm_lat",
@@ -432,34 +429,24 @@ sATM[,vars] %>%
        ylab=c("Missing data","Pattern"))
 ```
 
+The next step is to evaluate the correlation between the remaining variables. The case is if the correlation between two variables is high we'll exclude one of the variables. The reason is that high correlation doesn’t contribute with useful information, since it’s already there in one of the two variables. In the plot below the correlation between the variables is shown.
 
 ```{r fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
 ggcorr(sATM[vars], label = TRUE, label_size = 2, label_round = 2, hjust = 0.90) + 
   labs(title="Correlation among variables", fill="Correlation") + 
   scale_fill_gradient2(midpoint=0, low=base, mid="white", high=base)+
   coord_cartesian(expand=T)
-
-#unique(sATM$message_code)
-#summary(sATM$message_code)
 ```
 
-
-
+As it can be seen the correlation is high between “weather_lon” and “atm_lon” plus “weather_lat” and “atm_lat and because of this we decide to exclude the two weather variables. That means the dataset for the unsupervised ML consist of 2.5 million observations and 15 variables. Finally we scale the dataset to normalize the values.
 
 ### PCA
-We do a PCA, but it doesn't explain so much as the data is very hetrogene, with 4 variables the accumuleted variance explained is only 46%
+We are now ready to make a PCA of the dataset. We do this because we want to reduce the dimensionality of the dataset. The PCA works by projecting our data into a lower dimensional subspace which hopefully extracts the essence of the variation in the data.
 
 ```{r fig.height=3, fig.width=10, message=FALSE, warning=FALSE}
-#sATM <- sATM %>% select(-weather_lat, -weather_lon)
 vars2 <- c("day","hour","atm_id","atm_street_number","atm_zipcode","atm_lat",
            "atm_lon","weather_city_id","temp","pressure","humidity","wind_speed",
            "wind_deg","clouds_all", "weather_id")
-
-pca <- sATM[,vars2] %>% 
-  map_dfc(.f = scale) %>% 
-  prcomp(rank=4)
-
-summary(pca)
 
 a <- summary(pca)
 df1 <- a$importance[2,] %>% as_tibble %>% gather(variable, value) %>% mutate(type="Change", N=c(1:nrow(.)))
@@ -471,6 +458,16 @@ rbind(df1,df2) %>% as_tibble %>%
   geom_point(size=3, shape=21, fill="white", color=base, stroke=2) + 
   facet_wrap(~type, scale="free") + scale_x_continuous(breaks=c(0:15)) + 
   labs(title="Screeplot: Number of factors in PCA", x="Number of factors")
+```
+
+If we use the elbow-method we can see on the plot above that the optimal number of PCA’s seems to be between 3 to 5 PCAs. If we then choose to go with 4 PCAs then the accumulated variance explained is only 46%, that means that the data is very heterogenic. If we examines the selected PCAs we can see that the top loading in each component is respectively “atm_zipcode”, “clouds_all”, “atm_id” and “wind_speed”.
+
+```{r fig.height=3, fig.width=10, message=FALSE, warning=FALSE}
+pca <- sATM[,vars2] %>% 
+  map_dfc(.f = scale) %>% 
+  prcomp(rank=4)
+
+summary(pca)
 
 loadings <- pca$rotation %>% 
   abs() %>% 
@@ -486,35 +483,21 @@ c <- loadings %>% dplyr::select(name, PC3) %>% arrange(desc(PC3)) %>% head(6)
 d <- loadings %>% dplyr::select(name, PC4) %>% arrange(desc(PC4)) %>% head(6)
 
 kable(cbind(a,b,c,d)) %>% kable_styling("condensed", "bordered")
-
-#pca1 <- sATM[,vars2] %>%
-#  PCA(scale.unit = TRUE, graph = FALSE)
-#pca1 %>% 
-#  fviz_screeplot(addlabels = TRUE, 
-#                 ncp = 10, 
-#                 ggtheme = theme_gray())
-
-#pca2 %>% 
-#  fviz_screeplot(addlabels = TRUE, 
-#                 ncp = 10, 
-#                 ggtheme = theme_gray())
-#sATM %>% select(-rain_3h,-weather_lon, -weather_lat, -message_code, -message_text)
-  
-#sATM[,vars2] %>% 
-#  scale() %>%
-#  fviz_nbclust(kmeans, method = "wss")  
 ```
 
-
-
 ### Kmeans
-Kmeans clustering is used to seperate the variables into 4 clusters
+After the PCA we create a Kmeans. There are no relations between the two methods, but they can be used within the decision to select n PCA’s or k clusters. Kmeans is dividing the dataset into k clusters, where the basic idea is to minimize the total within-cluster variation. This is a method to discover similarities in the dataset, and then sample the similar groups into clusters, and the ideal situation is that there is great seperation between the clusters. 
+
+|               | Supervised    | Unsupervised  |
+| ------------- |:-------------:| -------------:|
+| Discrete      | Classification| Clustering    |
+|               |               | (Kmeans)      |
+| ------------- |:-------------:| -------------:|
+| Continuous    | Regression    | Dim.reduction |
+|               |               | (PCA)         |
+
 
 ```{r fig.height=3, fig.width=10}
-#km %>% 
-#  fviz_cluster(data = sATM[,vars2],
-#               ggtheme = theme_gray()) 
-
 wss <- 0
 for (i in 1:15) {
   wss[i] <- kmeans(sATM[,vars2], centers = i, nstart=20)$tot.withinss
@@ -529,23 +512,10 @@ ggplot(scree, aes(N, wss)) +
   labs(title="Screeplot: Number of clusters", x="Number of clusters", y="WSS")
 ```
 
-
-
-
-```{r}
-#hc <- sATM[,vars2] %>%
-#  hcut(hc_func = "hclust", 
-#       k = 4, 
-#       stand = TRUE)
-
-#hc %>%
-#  fviz_dend( k=4 ,rect = TRUE, cex = 0.5)
-```
-
+By use of the elbow-method we conclude that the optimal number of clusters is between 2 to 4 clusters.
 
 ### Combination
-
-We plot the 
+We select 4 clusters and then plot these in two of the dimensions from the PCA. This plot shows that there are no clear separation between the 4 clusters. The table is supporting that there are no clear difference to be found in the dataset.
 
 ```{r PCA CLUSTER, fig.height=4, fig.width=10}
 set.seed(250920198)
@@ -576,10 +546,6 @@ df %>%
        fill = "Clusters")
 ```
 
-
-
-
-
 ```{r warning=FALSE}
 sATM %>%
   bind_cols(cluster = km$cluster) %>%
@@ -592,13 +558,6 @@ sATM %>%
   kable %>% 
   kable_styling("condensed", "bordered")
 ```
-
-
-
-
-
-
-
 
 
 
@@ -634,7 +593,7 @@ cv <- trainControl(method = "cv", number = 5)
 ml <- fbATM
 ml$Euro <- as.factor(ifelse(ml$Euro == "TRUE", "Yes", "No"))
 
-index    <- createDataPartition(ml$Euro, p = 0.03, list = FALSE)
+index    <- createDataPartition(ml$Euro, p = 0.01, list = FALSE)
 training <- ml[index,] 
 test     <- ml[-index,] 
 ```
@@ -714,7 +673,7 @@ cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
 
 
 
-```{r CONF}
+```{r PREDICT}
 conf_bag <- table(predict(fit_bag,  test), test$Euro)
 #conf_bag
 
@@ -784,6 +743,16 @@ ggplot(df, aes(.metric, .estimate, fill = reorder(model, desc(.estimate)))) +
        subtitle="Crossvalidated 1/5 split", fill="Predictive Model")
 ```
 
+The models archives a high level of accuracy, this however is primarily caused because most of the models only predicts DKK. The spec values are low for all models. The only models that predict Euro withdrawals are the logistic model and the bagged tree. The bagged tree predicts the most Euro withdrawals, but its npv score is lower than for logistic regression. This is due to bagged tree making more predictions for Euro withdrawals compared to the logistic models. Thus the logistic models makes fewer but more “qualified” predictions.
+
+A model that assigns randomly is also included. It randomly predicts Euro withdrawals corresponding to the proportion of Euro in the dataset 
+
+$$spec = \frac{TT}{TF+TT}$$
+
+$$npv = \frac{TT}{FT+TT}$$
+
+
+
 
 
 ### Down Sampeling
@@ -791,12 +760,7 @@ ggplot(df, aes(.metric, .estimate, fill = reorder(model, desc(.estimate)))) +
 
 This however excludes a lot of information from the majority class in the dataset, as the final set is only of … observations. An alternative approach could be to use oversampling, where the minority class is re-sampled. This however causes problems with overfitting, as the observations of Euro transactions are duplicated. Due to the size of the dataset undersampling is used.
 
-
-
-
-
-
-```{r MODEL DOWN}
+```{r MODEL DOWN, eval=TRUE}
 
 # simple undersampling  ---------------------------------------------------
 
@@ -811,7 +775,7 @@ index    <- createDataPartition(ml$Euro, p = 0.75, list = FALSE)
 training <- ml[index,] 
 test     <- ml[-index,] 
 
-sub<-ovun.sample(Euro ~ ., data = training, p=0.5, method="under", seed = 1)$data
+sub  <- ovun.sample(Euro ~ ., data = training, p=0.5, method="under", seed = 1)$data
 sub2 <- sample_n(sub, 20000)
 sub3 <- sample_n(sub, 5000)
 sub4 <- sample_n(sub, 100)
@@ -866,7 +830,7 @@ g<- Sys.time()
 ```
 
 
-```{r}
+```{r PREDICT DOWN, eval=TRUE}
 conf_log <- table(predict(fit_log,  test), test$Euro)
 conf_tre <- table(predict(fit_tre,  test), test$Euro)
 conf_ela <- table(predict(fit_ela,  test), test$Euro)
@@ -891,7 +855,7 @@ kable(cbind(conf_bag, conf_tre, conf_log, conf_ela, conf_raf, conf_svm, conf_ran
 ```
 
 
-```{r}
+```{r eval=TRUE}
 cat(paste0("Size of training set: ",nrow(training)," rows of 2.5m\n","\n",
            "Logistic: ", round(difftime(b,a, units = "mins"),2),"\n",
            "Elastic:  ", round(difftime(c,b, units = "mins"),2),"\n",

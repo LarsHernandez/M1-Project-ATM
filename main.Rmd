@@ -450,12 +450,12 @@ df %>%
 ## Supervised Models
 
 ```{r}
-cv <- trainControl(method = "cv", number = 5)
+cv <- trainControl(method = "cv", number = 5, sampling = "down")
 
 ml <- fbATM
 ml$Euro <- as.factor(ifelse(ml$Euro == "TRUE", "Yes", "No"))
 
-index    <- createDataPartition(ml$Euro, p = 0.03, list = FALSE)
+index    <- createDataPartition(ml$Euro, p = 0.10, list = FALSE)
 training <- ml[index,] 
 test     <- ml[-index,] 
 ```
@@ -538,21 +538,15 @@ conf_ran
 ```{r}
 bag <- rbind(spec(conf_bag), precision(conf_bag), accuracy(conf_bag), recall(conf_bag), npv(conf_bag))
 tre <- rbind(spec(conf_tre), precision(conf_tre), accuracy(conf_tre), recall(conf_tre), npv(conf_tre))
-#raf <- rbind(spec(conf_raf), precision(conf_raf), accuracy(conf_raf))
-#net <- rbind(spec(conf_net), precision(conf_net), accuracy(conf_net), recall(conf_net), npv(conf_net))
 raf <- rbind(spec(conf_raf), precision(conf_raf), accuracy(conf_raf), recall(conf_raf), npv(conf_raf))
 log <- rbind(spec(conf_log), precision(conf_log), accuracy(conf_log), recall(conf_log), npv(conf_log))
-#lok <- rbind(spec(conf_lok), precision(conf_lok), accuracy(conf_lok), recall(conf_lok), npv(conf_lok))
 ran <- rbind(spec(conf_ran), precision(conf_ran), accuracy(conf_ran), recall(conf_ran), npv(conf_ran))
 svm <- rbind(spec(conf_svm), precision(conf_svm), accuracy(conf_svm), recall(conf_svm), npv(conf_svm))
 
 bag$model <- "Bagged Tree"
 tre$model <- "Classification Tree"
-#raf$model <- "Random Forrest"
-#net$model <- "Elastic Net Regression"
 raf$model <- "Random Forrest"
 log$model <- "Logistic Regression"
-#lok$model <- "Logistic Regression - glmnet"
 ran$model <- "Random Assignment"
 svm$model <- "Support Vector Machine Model"
 

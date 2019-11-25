@@ -1,5 +1,0 @@
-"0","s1 <- bATM %>% group_by(month)   %>% summarize(n=n()/1000) %>% ggplot(aes(month,n))   + geom_col()     + labs(title = ""obs by month"")+ theme(axis.text.x = element_text(angle = 90, vjust=-0.1))"
-"0","s2 <- bATM %>% group_by(day)     %>% summarize(n=n()/1000) %>% ggplot(aes(day,n))     + geom_col()         + labs(title = ""obs by day"")"
-"0","s3 <- bATM %>% group_by(weekday) %>% summarize(n=n()/1000) %>% ggplot(aes(weekday,n)) + geom_col() + labs(title = ""obs by weekday"")+ theme(axis.text.x = element_text(angle = 90, vjust=-0.1))"
-"0","s4 <- bATM %>% group_by(hour)    %>% summarize(n=n()/1000) %>% ggplot(aes(hour,n))    + geom_col()       + labs(title = ""obs by hour"") + scale_x_continuous(breaks=c(0,2,4,6,8,10,12,14,16,18,20,22,24))"
-"0","grid.arrange(s1,s2,s3,s4, nrow=1)"
